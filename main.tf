@@ -14,7 +14,7 @@ locals {
   engine_version        = "8.0.27"
   family                = "mysql8.0" # DB parameter group
   major_engine_version  = "8.0"      # DB option group
-  instance_class        = "db.t4g.large"
+  instance_class        = "db.t1.micro" 
   allocated_storage     = 20
   max_allocated_storage = 100
   port                  = 3306
@@ -86,7 +86,7 @@ module "master" {
   username = "replica_mysql"
   port     = local.port
 
-  multi_az               = true
+  multi_az               = false
   db_subnet_group_name   = module.vpc.database_subnet_group_name
   vpc_security_group_ids = [module.security_group.security_group_id]
 
