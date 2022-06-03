@@ -47,7 +47,7 @@ module "security_group" {
   version = "~> 4.0"
 
   name        = local.name
-  description = "Replica MySQL example security group"
+  description = "Wordpress Database sg"
   vpc_id      = module.vpc.vpc_id
 
   # ingress
@@ -86,7 +86,7 @@ module "master" {
   username = "replica_mysql"
   port     = local.port
 
-  multi_az               = false
+  multi_az               = True
   db_subnet_group_name   = module.vpc.database_subnet_group_name
   vpc_security_group_ids = [module.security_group.security_group_id]
 
@@ -105,7 +105,7 @@ module "master" {
 ################################################################################
 # Replica DB
 ################################################################################
-
+/*
 module "replica" {
   source = "terraform-aws-modules/rds/aws"
 
@@ -138,4 +138,4 @@ module "replica" {
   deletion_protection     = false
 
   tags = local.tags
-}
+}*/
