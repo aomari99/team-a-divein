@@ -47,12 +47,6 @@ variable "ecs_task_definition_memory" {
   default     = "2048"
 }
 
-variable "db_master_username" {
-  description = "Master username of the db"
-}
-variable "db_master_password" {
-  description = "Master password of the db"
-}
 
 variable "ecs_service_name" {
   description = "Name for the ECS Service"

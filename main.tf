@@ -14,7 +14,7 @@ locals {
   engine_version        = "8.0.27"
   family                = "mysql8.0" # DB parameter group
   major_engine_version  = "8.0"      # DB option group
-  instance_class        = "db.t1.micro" 
+  instance_class        = "db.t4g.micro" 
   allocated_storage     = 20
   max_allocated_storage = 100
   port                  = 3306
@@ -57,10 +57,17 @@ module "security_group" {
       to_port     = 3306
       protocol    = "tcp"
       description = "MySQL access from within VPC"
-      cidr_blocks = module.vpc.vpc_cidr_block
+      cidr_blocks = "0.0.0.0/0"
     },
+]
+  egress_with_cidr_blocks = [{
+    protocol    = "-1"
+    from_port   = 0
+    to_port     = 0
+    cidr_blocks = "0.0.0.0/0"
+      }
   ]
-
+  
   tags = local.tags
 }
 
@@ -84,12 +91,6 @@ variable "ecs_task_definition_memory" {
   default     = "2048"
 }
 
-variable "db_master_username" {
-  description = "Master username of the db"
-}
-variable "db_master_password" {
-  description = "Master password of the db"
-}
 
 variable "ecs_service_name" {
   description = "Name for the ECS Service"
@@ -121,11 +122,12 @@ module "master" {
   allocated_storage     = local.allocated_storage
   max_allocated_storage = local.max_allocated_storage
 
-  db_name  = "replicaMysql"
-  username = "replica_mysql"
+  db_name  = "wordpress"
+  username = "test"
+  password = "test"
   port     = local.port
 
-  multi_az               = True
+  multi_az               = true
   db_subnet_group_name   = module.vpc.database_subnet_group_name
   vpc_security_group_ids = [module.security_group.security_group_id]
 
@@ -139,6 +141,12 @@ module "master" {
   deletion_protection     = false
 
   tags = local.tags
+}
+
+variable "ecs_cluster_name" {
+  description = "Name for the ECS cluster"
+  type        = string
+  default     = "wordpress_cluster"
 }
 
 resource "aws_ecs_cluster" "wordpress" {
@@ -164,9 +172,13 @@ resource "aws_security_group" "wordpress" {
     ipv6_cidr_blocks = ["::/0"]
   }
 
-  tags = var.tags
+  tags = local.tags
 }
 
+variable "log_retention_in_days" {
+  description = "The number of days to retain cloudwatch log"
+  default     = "1"
+}
 
 //Defining all parameters related to wordpress container
 resource "aws_ecs_task_definition" "wordpress" {
@@ -180,20 +192,20 @@ resource "aws_ecs_task_definition" "wordpress" {
   container_definitions    = <<CONTAINER_DEFINITION
 [
   {
-    "secrets": [
+
+    "environment": [
       {
         "name": "WORDPRESS_DB_USER", 
-        "valueFROM": "test"
+        "value": "test"
       },
       {
         "name": "WORDPRESS_DB_PASSWORD", 
-        "valueFROM": "test"
-      }
-    ],
-    "environment": [
+        "value": "test"
+      },
+
       {
         "name": "WORDPRESS_DB_HOST",
-        "value": "${module.master.this.endpoint}"
+        "value": "${module.master.db_instance_endpoint}"
       },
       {
         "name": "WORDPRESS_DB_NAME",
@@ -225,15 +237,8 @@ CONTAINER_DEFINITION
 }
 
 resource "aws_cloudwatch_log_group" "wordpress" {
-  name              = "/${var.prefix}/${var.environment}/fg-task"
-  tags              = var.tags
-  retention_in_days = var.log_retention_in_days
-}
-
-resource "aws_cloudwatch_log_group" "wordpress" {
   name              = "/ecs/wordpress"
-  description       = " Log Group where ECS logs should be written"
-  tags              = var.tags
+  tags              = local.tags
   retention_in_days = var.log_retention_in_days
 }
 
@@ -244,49 +249,14 @@ resource "aws_ecs_service" "wordpress" {
   desired_count    = var.ecs_service_desired_count
   launch_type      = "FARGATE"
   platform_version = "1.4.0" 
+  
   network_configuration {
-    security_groups = [aws_security_group.db.id]
+    security_groups = [module.security_group.security_group_id, aws_security_group.wordpress.id]
     subnets         = module.vpc.public_subnets
+    assign_public_ip = true
   }
 
 }
-
- data "aws_iam_policy_document" "kms" {
-  statement {
-    sid    = "Enable IAM User Permissions"
-    effect = "Allow"
-    principals {
-      type        = "AWS"
-      identifiers = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"]
-    }
-    actions   = ["kms:*"]
-    resources = ["*"]
-  }
-  statement {
-    effect = "Allow"
-    principals {
-      type        = "Service"
-      identifiers = ["logs.${data.aws_region.current.name}.amazonaws.com"]
-    }
-    actions = [
-      "kms:Encrypt*",
-      "kms:Decrypt*",
-      "kms:ReEncrypt*",
-      "kms:GenerateDataKey*",
-      "kms:Describe*"
-    ]
-    resources = ["*"]
-    condition {
-      test     = "ArnLike"
-      variable = "kms:EncryptionContext:aws:logs:arn"
-      values   = ["arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:*"]
-    }
-  }
-}
- 
-
-
- 
 
 
 
