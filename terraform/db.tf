@@ -17,9 +17,9 @@ module "master_db" {
   max_allocated_storage = local.max_allocated_storage
 
   db_name  = "wordpress"
-  username = vars.db_master_username
+  username = var.db_master_username
   #publicly_accessible    = true
-  password = vars.db_master_password
+  password = var.db_master_password
   port     = local.port
 
   multi_az               = true

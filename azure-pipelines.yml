@@ -56,7 +56,7 @@ stages:
 
                       terraform init --backend-config="key=${TFSTATE_S3}" -reconfigure
 
-                      terraform apply -auto-approve  
+                      terraform apply -auto-approve -var="db_master_username=$(db_master_username)" -var="db_master_password=$(db_master_password)"
         
 
 
