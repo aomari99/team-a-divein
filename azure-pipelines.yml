@@ -27,6 +27,7 @@ stages:
     jobs:
       - deployment: terraform
         displayName: "Change Infrastructure"
+        environment: production-teamA
         strategy:
           runOnce:
             deploy:
@@ -49,9 +50,6 @@ stages:
                       export AWS_DEFAULT_REGION="eu-west-1"
 
                       export TFSTATE_S3="prod/terraform.tfstate"
-
-                      echo "Sanity Check: "
-                      terraform validate
 
                       echo "Terraform verion: "
                       terraform --version
