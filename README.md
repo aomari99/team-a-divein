@@ -1,4 +1,4 @@
-<img src="https://logos-world.net/wp-content/uploads/2021/08/Deloitte-Logo.png" alt="Deloitte Logo" width="100"/>
+<img src="https://logos-world.net/wp-content/uploads/2021/08/Deloitte-Logo.png" alt="Deloitte Logo" width="300"/>
 
 # Deloitte DiveIn Case Study - Team A
 
