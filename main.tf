@@ -1,9 +1,10 @@
 provider "aws" {
   region = local.region
+ 
 }
 
 locals {
-  name   = "replica-mysql"
+  name   = "wordpress-db"
   region = "eu-west-1"
   tags = {
     Owner       = "user"
@@ -38,11 +39,11 @@ module "vpc" {
   database_subnets = ["10.99.7.0/24", "10.99.8.0/24", "10.99.9.0/24"]
 
   create_database_subnet_group = true
-
+  enable_dns_hostnames = true
   tags = local.tags
 }
-
-module "security_group" {
+#database Security group allowing only traffic through port MYSQL DB Port 3306
+module "security_group_db" {
   source  = "terraform-aws-modules/security-group/aws"
   version = "~> 4.0"
 
@@ -57,16 +58,16 @@ module "security_group" {
       to_port     = 3306
       protocol    = "tcp"
       description = "MySQL access from within VPC"
-      cidr_blocks = "0.0.0.0/0"
-    },
-]
+      cidr_blocks = module.vpc.vpc_cidr_block
+    } 
+]/*
   egress_with_cidr_blocks = [{
     protocol    = "-1"
     from_port   = 0
     to_port     = 0
     cidr_blocks = "0.0.0.0/0"
       }
-  ]
+  ]*/
   
   tags = local.tags
 }
@@ -124,12 +125,13 @@ module "master" {
 
   db_name  = "wordpress"
   username = "test"
+  #publicly_accessible    = true
   password = "test"
   port     = local.port
 
   multi_az               = true
   db_subnet_group_name   = module.vpc.database_subnet_group_name
-  vpc_security_group_ids = [module.security_group.security_group_id]
+  vpc_security_group_ids = [module.security_group_db.security_group_id]
 
   maintenance_window              = "Mon:00:00-Mon:03:00"
   backup_window                   = "03:00-06:00"
@@ -152,6 +154,38 @@ variable "ecs_cluster_name" {
 resource "aws_ecs_cluster" "wordpress" {
   name = var.ecs_cluster_name
 }
+
+
+module "security_group_wordpress" {
+  source  = "terraform-aws-modules/security-group/aws"
+  version = "~> 4.0"
+
+  name        = "wordpress"
+  description = "Wordpress sg"
+  vpc_id      = module.vpc.vpc_id
+
+  # ingress
+  ingress_with_cidr_blocks = [
+    {
+      from_port   = 80
+      to_port     = 80
+      protocol    = "tcp"
+      description = "Wordpress get accessed from anywhere"
+      cidr_blocks = "0.0.0.0/0"
+    } 
+] 
+  egress_with_cidr_blocks = [{
+    protocol    = "-1"
+    from_port   = 0
+    to_port     = 0
+    description = "Wordpress access data from anywhere"
+    cidr_blocks = "0.0.0.0/0"
+      }
+  ] 
+  
+  tags = local.tags
+}
+/*
 resource "aws_security_group" "wordpress" {
   name        = "$wordpress-sg"
   description = "Fargate wordpress security group"
@@ -165,8 +199,8 @@ resource "aws_security_group" "wordpress" {
   }
 
   ingress{
-    from_port        = 0
-    to_port          = 0
+    from_port        = 80
+    to_port          = 80
     protocol         = "-1"
     cidr_blocks      = ["0.0.0.0/0"]
     ipv6_cidr_blocks = ["::/0"]
@@ -174,7 +208,7 @@ resource "aws_security_group" "wordpress" {
 
   tags = local.tags
 }
-
+*/
 variable "log_retention_in_days" {
   description = "The number of days to retain cloudwatch log"
   default     = "1"
@@ -196,11 +230,11 @@ resource "aws_ecs_task_definition" "wordpress" {
     "environment": [
       {
         "name": "WORDPRESS_DB_USER", 
-        "value": "test"
+        "value": "${module.master.db_instance_username}"
       },
       {
         "name": "WORDPRESS_DB_PASSWORD", 
-        "value": "test"
+        "value": "${module.master.db_instance_password}"
       },
 
       {
@@ -225,7 +259,7 @@ resource "aws_ecs_task_definition" "wordpress" {
       "logDriver":"awslogs",
       "options": {
         "awslogs-group": "${aws_cloudwatch_log_group.wordpress.name}",
-        "awslogs-region": "${data.aws_region.current.name}",
+        "awslogs-region": "${local.region}",
         "awslogs-stream-prefix": "app"
       }
     }
@@ -251,7 +285,7 @@ resource "aws_ecs_service" "wordpress" {
   platform_version = "1.4.0" 
   
   network_configuration {
-    security_groups = [module.security_group.security_group_id, aws_security_group.wordpress.id]
+    security_groups = [module.security_group_wordpress.security_group_id]
     subnets         = module.vpc.public_subnets
     assign_public_ip = true
   }
@@ -313,41 +347,3 @@ resource "aws_iam_role_policy_attachment" "ecs_role_attachment" {
   role       = aws_iam_role.ecs_task_role.name
   policy_arn = aws_iam_policy.ecs_task_policy.arn
 }
-
-################################################################################
-# Replica DB
-################################################################################
-/*
-module "replica" {
-  source = "terraform-aws-modules/rds/aws"
-
-  identifier = "${local.name}-replica"
-
-  # Source database. For cross-region use db_instance_arn
-  replicate_source_db    = module.master.db_instance_id
-  create_random_password = false
-
-  engine               = local.engine
-  engine_version       = local.engine_version
-  family               = local.family
-  major_engine_version = local.major_engine_version
-  instance_class       = local.instance_class
-
-  allocated_storage     = local.allocated_storage
-  max_allocated_storage = local.max_allocated_storage
-
-  port = local.port
-
-  multi_az               = false
-  vpc_security_group_ids = [module.security_group.security_group_id]
-
-  maintenance_window              = "Tue:00:00-Tue:03:00"
-  backup_window                   = "03:00-06:00"
-  enabled_cloudwatch_logs_exports = ["general"]
-
-  backup_retention_period = 0
-  skip_final_snapshot     = true
-  deletion_protection     = false
-
-  tags = local.tags
-}*/
