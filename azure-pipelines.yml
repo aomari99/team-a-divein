@@ -1,0 +1,64 @@
+name: Wordpress Pipeline Team A
+trigger:
+  branches:
+    include:
+      - master
+
+pool:
+  vmImage: 'ubuntu-20.04'
+
+variables:
+  - group: TeamA
+
+  - name: terraformVersion
+    value: "1.2.2"
+
+  - name: terraformZipHash
+    value: A221682FCC9CBD7FDE22F305EAD99B3AD49D8303F152E118EDDA086A2807716D
+
+  - name: terraformPlanArtifactName
+    value: terraformPlan
+
+  - name: terraformFolderNameInRepo
+    value: terraform
+
+stages:
+  - stage: production
+    jobs:
+      - deployment: terraform
+        displayName: "Change Infrastructure"
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+                  fetchDepth: 1
+                  
+                - task: Bash@3
+                  displayName: 'Terraform'
+                  inputs:
+                    targetType: 'inline'
+                    workingDirectory: $(terraformFolderNameInRepo)
+                    script: |
+                      curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo apt-key add -
+                      sudo apt-add-repository "deb [arch=$(dpkg --print-architecture)] https://apt.releases.hashicorp.com $(lsb_release -cs) main"
+                      sudo apt update
+                      sudo apt install terraform
+                      export AWS_ACCESS_KEY_ID="$(access_key)"
+                      export AWS_SECRET_ACCESS_KEY="$(secret_key)"
+                      export AWS_DEFAULT_REGION="eu-west-1"
+
+                      export TFSTATE_S3="prod/terraform.tfstate"
+
+                      echo "Sanity Check: "
+                      terraform validate
+
+                      echo "Terraform verion: "
+                      terraform --version
+
+                      terraform init --backend-config="key=${TFSTATE_S3}" -reconfigure
+
+                      terraform apply -auto-approve  
+        
+
+
