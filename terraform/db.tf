@@ -2,7 +2,7 @@
 # Master DB
 ################################################################################
 
-module "master" {
+module "master_db" {
   source = "terraform-aws-modules/rds/aws"
 
   identifier = "${local.name}-master"
@@ -17,9 +17,9 @@ module "master" {
   max_allocated_storage = local.max_allocated_storage
 
   db_name  = "wordpress"
-  username = "test"
+  username = vars.db_master_username
   #publicly_accessible    = true
-  password = "test"
+  password = vars.db_master_password
   port     = local.port
 
   multi_az               = true

@@ -32,5 +32,5 @@ resource "aws_lb_target_group" "wordpress_http" {
     cookie_duration = 86400
     enabled         = true
   }
-  tags = var.tags
+  tags = local.tags
 }

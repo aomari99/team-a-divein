@@ -16,9 +16,9 @@ resource "aws_ecs_task_definition" "wordpress" {
   container_definitions    = templatefile(
     "./wordpress.tpl",
     {
-      wordpress_db_host          = module.master.db_instance_endpoint
-      wordpress_db_user          = module.master.db_instance_username
-      wordpress_db_password      = module.master.db_instance_password
+      wordpress_db_host          = module.master_db.db_instance_endpoint
+      wordpress_db_user          = module.master_db.db_instance_username
+      wordpress_db_password      = module.master_db.db_instance_password
       aws_region                 = local.region
       cloudwatch_log_group       = aws_cloudwatch_log_group.wordpress.name
     }
