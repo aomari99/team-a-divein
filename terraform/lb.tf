@@ -2,9 +2,9 @@ resource "aws_lb" "wordpress" {
   name               = var.lb_name
   internal           = var.lb_internal
   load_balancer_type = "application"
-  security_groups    = local.lb_security_group_ids
-  subnets            = var.lb_subnet_ids
-  tags               = var.tags
+  security_groups    = [module.security_group_wordpress.security_group_id]
+  subnets            = module.vpc.public_subnets
+  tags               = local.tags
 }
 
 resource "aws_lb_listener" "wordpress_http" {
@@ -23,7 +23,7 @@ resource "aws_lb_target_group" "wordpress_http" {
   port        = 80
   protocol    = "HTTP"
   target_type = "ip"
-  vpc_id      = data.aws_subnet.ecs_service_subnet_ids.vpc_id
+  vpc_id      = module.vpc.vpc_id
   health_check {
     matcher = "200-499"
   }

@@ -40,3 +40,25 @@ variable "log_retention_in_days" {
   description = "The number of days to retain cloudwatch log"
   default     = "1"
 }
+
+#lb variables
+
+variable "lb_name" {
+  description = "Name for the load balancer"
+  type        = string
+  default     = "wordpress"
+}
+
+variable "lb_internal" {
+  description = "If the load balancer should be an internal load balancer"
+  type        = bool
+  default     = false
+}
+
+
+variable "lb_target_group_http" {
+  description = "Name of the HTTP target group"
+  type        = string
+  default     = "wordpress-http"
+}
+
